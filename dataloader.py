@@ -13,6 +13,8 @@ from torch.utils.data import random_split
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 
+import dataset_creation as helper
+
 class Mat_Dataset(Dataset):
   def __init__(self, mats, Subject_IDs):
     
@@ -32,3 +34,12 @@ class Mat_Dataset(Dataset):
       
   def __getitem__(self, idx):
     return self.samples[idx], self.labels[idx]
+
+exp_i_data = helper.load_exp_i("dataset/experiment-i")
+exp_ii_data_air, exp_ii_data_spo = helper.load_exp_ii("dataset/experiment-ii")
+
+datasets = {
+    "Base":exp_i_data,
+    "Spo":exp_ii_data_air,
+    "Air":exp_ii_data_spo
+}
