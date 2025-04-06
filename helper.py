@@ -9,7 +9,7 @@ with open("cycled_dataset.pkl", "rb") as f:
 
 
 def update_pressure_durations(current_durations, new_posture, new_frame, current_posture=0,
-                               num_rows=8, num_cols=4, pressure_threshold=125):
+                               num_rows=8, num_cols=4, pressure_threshold=0):
     """
     Update pressure durations per region based on the new frame and posture.
 
@@ -33,19 +33,45 @@ def update_pressure_durations(current_durations, new_posture, new_frame, current
     region_h = H // num_rows
     region_w = W // num_cols
 
-    new_durations = current_durations.copy()
+    new_durations = current_durations.astype(float).copy()
 
+
+    #new_durations = np.zeros((num_rows, num_cols), dtype=int)
     for i in range(num_rows):
         for j in range(num_cols):
             region = new_frame[i*region_h:(i+1)*region_h, j*region_w:(j+1)*region_w]
             avg_pressure = np.mean(region)
-
-            if avg_pressure > pressure_threshold:
-                new_durations[i, j] += 1
-            else:
-                new_durations[i, j] = 0
-
+            temp = avg_pressure
+            new_durations[i, j] += temp
     return new_durations
+
+def get_last_posture(patient_id):
+    file_path = f"{patient_id}_posture.pkl"
+    data = None
+    if os.path.exists(file_path):
+        data = pickle.load(open(file_path, "rb"))
+    else:
+        data = 0
+    pickle.dump(data, open(file_path, "wb"))
+    return data
+
+def get_sleep_position_change(patient_id):
+    file_path = f"{patient_id}_sleep_position_change.pkl"
+    data = None
+    if os.path.exists(file_path):
+        data = pickle.load(open(file_path, "rb"))
+    else:
+        data = 0
+    pickle.dump(data, open(file_path, "wb"))
+    return data
+
+def save_sleep_position_change(patient_id, sleep_position_change):
+    file_path = f"{patient_id}_sleep_position_change.pkl"
+    pickle.dump(sleep_position_change, open(file_path, "wb"))
+
+def save_last_posture(patient_id, posture):
+    file_path = f"{patient_id}_posture.pkl"
+    pickle.dump(posture, open(file_path, "wb"))
 
 def safe_time_to_index(hours, minutes, seconds, data_tensor, total_hours=9):
     total_samples = len(data_tensor)

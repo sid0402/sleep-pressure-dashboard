@@ -16,9 +16,11 @@ DB_CONFIG = {
 
 faker = Faker()
 
+# Connect to PostgreSQL
 conn = psycopg2.connect(**DB_CONFIG)
 cur = conn.cursor()
 
+# Reset and create necessary tables
 cur.execute("DROP TABLE IF EXISTS nurses CASCADE;")
 cur.execute("DROP TABLE IF EXISTS patient_units CASCADE;")
 
@@ -41,6 +43,7 @@ CREATE TABLE patient_units (
 """)
 conn.commit()
 
+# Insert sample nurses
 nurses = [
     ("alice@hospital.org", "1234567890", "password", "UnitA", "WingA"),
     ("bob@hospital.org", "2345678901", "password", "UnitA", "WingA"),
@@ -51,6 +54,7 @@ nurses = [
 cur.executemany("INSERT INTO nurses (email, phone, password, unit, wing) VALUES (%s, %s, %s, %s, %s);", nurses)
 conn.commit()
 
+# Pressure ulcer SNOMED codes
 pressure_ulcers = {
     1: ("399269003", "Pressure ulcer of sacral region"),
     2: ("1163215007", "Pressure ulcer of right hip"),
@@ -58,6 +62,7 @@ pressure_ulcers = {
     4: ("449835005", "Pressure ulcer of right elbow")
 }
 
+# Create patients and associated FHIR resources
 for i in range(1, 14):
     fhir_id = f"patient-{i}"
     full_name = faker.name().split()
@@ -69,8 +74,12 @@ for i in range(1, 14):
         "birthDate": f"{random.randint(1950, 2005)}-01-01"
     }
 
-    url = f"{FHIR_BASE}/Patient/{fhir_id}"
-    response = requests.put(url, headers={"Content-Type": "application/fhir+json"}, data=json.dumps(patient))
+    # Create or update the patient
+    response = requests.put(
+        f"{FHIR_BASE}/Patient/{fhir_id}",
+        headers={"Content-Type": "application/fhir+json"},
+        data=json.dumps(patient)
+    )
 
     if response.status_code not in [200, 201]:
         print(f"❌ Failed to create Patient/{fhir_id}: {response.status_code}, {response.text}")
@@ -85,8 +94,10 @@ for i in range(1, 14):
         (fhir_id, unit, wing)
     )
 
+    # Add height (fixed ID)
     height_obs = {
         "resourceType": "Observation",
+        "id": f"{fhir_id}-height",
         "status": "final",
         "code": {"coding": [{"system": "http://loinc.org", "code": "8302-2", "display": "Height"}]},
         "subject": {"reference": f"Patient/{fhir_id}"},
@@ -98,10 +109,14 @@ for i in range(1, 14):
             "code": "cm"
         }
     }
-    requests.post(f"{FHIR_BASE}/Observation", headers={"Content-Type": "application/fhir+json"}, data=json.dumps(height_obs))
+    requests.put(f"{FHIR_BASE}/Observation/{height_obs['id']}",
+                 headers={"Content-Type": "application/fhir+json"},
+                 data=json.dumps(height_obs))
 
+    # Add weight (fixed ID)
     weight_obs = {
         "resourceType": "Observation",
+        "id": f"{fhir_id}-weight",
         "status": "final",
         "code": {"coding": [{"system": "http://loinc.org", "code": "29463-7", "display": "Body weight"}]},
         "subject": {"reference": f"Patient/{fhir_id}"},
@@ -113,13 +128,16 @@ for i in range(1, 14):
             "code": "kg"
         }
     }
-    requests.post(f"{FHIR_BASE}/Observation", headers={"Content-Type": "application/fhir+json"}, data=json.dumps(weight_obs))
+    requests.put(f"{FHIR_BASE}/Observation/{weight_obs['id']}",
+                 headers={"Content-Type": "application/fhir+json"},
+                 data=json.dumps(weight_obs))
 
-    # Conditionally add skin condition
+    # Add skin condition (fixed ID if required)
     if i in pressure_ulcers:
         code, display = pressure_ulcers[i]
         condition = {
             "resourceType": "Condition",
+            "id": f"{fhir_id}-ulcer",
             "clinicalStatus": {
                 "coding": [{"system": "http://terminology.hl7.org/CodeSystem/condition-clinical", "code": "active"}]
             },
@@ -129,7 +147,10 @@ for i in range(1, 14):
             "subject": {"reference": f"Patient/{fhir_id}"},
             "onsetDateTime": (datetime.now() - timedelta(days=random.randint(1, 10))).isoformat()
         }
-        res = requests.post(f"{FHIR_BASE}/Condition", headers={"Content-Type": "application/fhir+json"}, data=json.dumps(condition))
+        res = requests.put(f"{FHIR_BASE}/Condition/{condition['id']}",
+                           headers={"Content-Type": "application/fhir+json"},
+                           data=json.dumps(condition))
+
         if res.status_code not in [200, 201]:
             print(f"❌ Condition failed for {fhir_id}")
         else:
@@ -138,4 +159,5 @@ for i in range(1, 14):
 conn.commit()
 cur.close()
 conn.close()
-print("✅ Successfully created 13 patients with specific pressure ulcers and no conditions for others.")
+
+print("✅ Successfully created 13 patients with consistent IDs and associated resources.")

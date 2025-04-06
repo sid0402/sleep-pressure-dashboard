@@ -3,91 +3,100 @@ import json
 
 FHIR_BASE = "http://localhost:8080/fhir"
 
-# Get a patient by ID
+# --- Patient APIs ---
+
 def get_patient(patient_id):
-    """Retrieve a patient by ID"""
+    """Retrieve a specific patient by ID"""
     try:
         response = requests.get(f"{FHIR_BASE}/Patient/{patient_id}")
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"Error retrieving patient: {e}")
+        print(f"❌ Error retrieving Patient/{patient_id}: {e}")
         return None
 
-# Get all patients, with optional search parameters
 def get_patients(params=None):
-    """Retrieve patients with optional search parameters"""
+    """Retrieve all patients with optional filters"""
     try:
         response = requests.get(f"{FHIR_BASE}/Patient", params=params)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"Error retrieving patients: {e}")
+        print(f"❌ Error retrieving Patients: {e}")
         return None
 
-# Get an observation by ID
+# --- Observation APIs ---
+
 def get_observation(observation_id):
-    """Retrieve an observation by ID"""
+    """Retrieve a specific observation by ID"""
     try:
         response = requests.get(f"{FHIR_BASE}/Observation/{observation_id}")
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"Error retrieving observation: {e}")
+        print(f"❌ Error retrieving Observation/{observation_id}: {e}")
         return None
 
-# Get observations, with optional search parameters
 def get_observations(params=None):
-    """Retrieve observations with optional search parameters"""
+    """Retrieve observations, optionally filtered by patient or code"""
     try:
         response = requests.get(f"{FHIR_BASE}/Observation", params=params)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"Error retrieving observations: {e}")
+        print(f"❌ Error retrieving Observations: {e}")
         return None
 
-# Get a condition by ID
+def get_patient_observations(patient_id):
+    """Get all observations for a specific patient"""
+    return get_observations({"patient": f"Patient/{patient_id}"})
+
+
+# --- Condition APIs ---
+
 def get_condition(condition_id):
-    """Retrieve a condition by ID"""
+    """Retrieve a specific condition by ID"""
     try:
         response = requests.get(f"{FHIR_BASE}/Condition/{condition_id}")
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"Error retrieving condition: {e}")
+        print(f"❌ Error retrieving Condition/{condition_id}: {e}")
         return None
 
-# Get conditions, with optional search parameters
 def get_conditions(params=None):
-    """Retrieve conditions with optional search parameters"""
+    """Retrieve conditions, optionally filtered by patient or code"""
     try:
         response = requests.get(f"{FHIR_BASE}/Condition", params=params)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"Error retrieving conditions: {e}")
+        print(f"❌ Error retrieving Conditions: {e}")
         return None
 
-# Example usage
-'''
+def get_patient_conditions(patient_id):
+    """Get all conditions for a specific patient"""
+    return get_conditions({"patient": f"Patient/{patient_id}"})
+
+
+# --- Debug Example ---
+
 if __name__ == "__main__":
-    # Get all patients
-    patients = get_patients()
-    if patients:
-        print(f"Found {len(patients.get('entry', []))} patients")
-    
-    # Get patient observations
-    if patients and 'entry' in patients and len(patients['entry']) > 0:
-        patient_id = patients['entry'][0]['resource']['id']
-        observations = get_observations({"patient": patient_id})
-        if observations:
-            print(f"Found {len(observations.get('entry', []))} observations for patient {patient_id}")
-    
-    # Get patient conditions
-    if patients and 'entry' in patients and len(patients['entry']) > 0:
-        patient_id = patients['entry'][0]['resource']['id']
-        conditions = get_conditions({"patient": patient_id})
-        if conditions:
-            print(f"Found {len(conditions.get('entry', []))} conditions for patient {patient_id}")
-'''
+    # List all patients
+    all_patients = get_patients()
+    if all_patients:
+        entries = all_patients.get("entry", [])
+        print(f"Found {len(entries)} patients.")
+
+        # Fetch resources for first patient
+        if entries:
+            pid = entries[0]["resource"]["id"]
+            print(f"Patient ID: {pid}")
+
+            print("\n📌 Observations:")
+            obs = get_patient_observations(pid)
+            print(json.dumps(obs, indent=2) if obs else "None")
+
+            print("\n📌 Conditions:")
+            cond = get_patient_conditions(pid)
+            print(json.dumps(cond, indent=2) if cond else "None")
