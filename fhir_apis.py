@@ -100,3 +100,109 @@ if __name__ == "__main__":
             print("\n📌 Conditions:")
             cond = get_patient_conditions(pid)
             print(json.dumps(cond, indent=2) if cond else "None")
+
+def create_sleep_position_observation(patient_id, position, pressure_risk=None, additional_notes=None):
+    """
+    Create an observation for a patient's sleep position
+    
+    Args:
+        patient_id (str): FHIR patient ID
+        position (str): Patient's sleep position (e.g. 'supine', 'prone', 'left lateral', 'right lateral')
+        pressure_risk (str, optional): Risk level ('low', 'medium', 'high')
+        additional_notes (str, optional): Any additional notes about the observation
+        
+    Returns:
+        dict: Created observation resource or None if creation failed
+    """
+    from datetime import datetime
+    import uuid
+    
+    # Generate unique ID for this observation
+    observation_id = f"sleep-position-{uuid.uuid4()}"
+    
+    # Create timestamp for the observation
+    timestamp = datetime.now().isoformat()
+    
+    # Build the observation resource
+    observation = {
+        "resourceType": "Observation",
+        "id": observation_id,
+        "status": "final",
+        "category": [
+            {
+                "coding": [
+                    {
+                        "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                        "code": "vital-signs",
+                        "display": "Vital Signs"
+                    }
+                ]
+            }
+        ],
+        "code": {
+            "coding": [
+                {
+                    "system": "http://loinc.org",
+                    "code": "32739-0",  # "Body position" LOINC code
+                    "display": "Sleep Position"
+                }
+            ],
+            "text": "Patient Sleep Position"
+        },
+        "subject": {
+            "reference": f"Patient/{patient_id}"
+        },
+        "effectiveDateTime": timestamp,
+        "issued": timestamp,
+        "valueString": position
+    }
+    
+    # Add pressure risk if provided
+    if pressure_risk:
+        observation["component"] = [
+            {
+                "code": {
+                    "coding": [
+                        {
+                            "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue",
+                            "code": "RISK",
+                            "display": "Risk"
+                        }
+                    ],
+                    "text": "Pressure Ulcer Risk"
+                },
+                "valueString": pressure_risk
+            }
+        ]
+    
+    # Add additional notes if provided
+    if additional_notes:
+        if "component" not in observation:
+            observation["component"] = []
+        
+        observation["component"].append({
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://loinc.org",
+                        "code": "48767-8",
+                        "display": "Annotation comment"
+                    }
+                ],
+                "text": "Additional Notes"
+            },
+            "valueString": additional_notes
+        })
+    
+    try:
+        # Create the observation using a POST request
+        response = requests.post(
+            f"{FHIR_BASE}/Observation",
+            headers={"Content-Type": "application/fhir+json"},
+            json=observation
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error creating sleep position observation: {e}")
+        return None

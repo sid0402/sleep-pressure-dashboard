@@ -3,10 +3,20 @@ import torch
 import numpy as np
 from collections import defaultdict
 import os
-
+import psycopg2
 with open("cycled_dataset.pkl", "rb") as f:
     cycled_dataset = pickle.load(f)
 
+DB_CONFIG = {
+    'dbname': 'sleep-posture-dashboard',
+    'user': 'postgres',
+    'password': 'shishir',
+    'host': 'localhost',
+    'port': '5432'
+}
+
+def get_db_connection():
+    return psycopg2.connect(**DB_CONFIG)
 
 def update_pressure_durations(current_durations, new_posture, new_frame, current_posture=0,
                                num_rows=8, num_cols=4, pressure_threshold=0):
@@ -91,3 +101,36 @@ def get_pressure_durations(num_subjects=13, num_rows=8, num_cols=4):
         with open(file_path, "wb") as f:
             pickle.dump(pressure_durations, f)
     return pressure_durations
+
+def get_patient_positions(patient_id):
+    file_path = f"{patient_id}_positions.pkl"
+    data = None
+    if os.path.exists(file_path):
+        data = pickle.load(open(file_path, "rb"))
+    else:
+        data = []
+    pickle.dump(data, open(file_path, "wb"))
+    return data
+
+def save_patient_positions(patient_id, positions):
+    file_path = f"{patient_id}_positions.pkl"
+    pickle.dump(positions, open(file_path, "wb"))
+
+def log_event(user_id, action, resource_type=None, resource_id=None, detail=None):
+    """
+    Write an entry to the audit_logs table.
+    :param user_id: The ID of the nurse/user performing the action
+    :param action: A short keyword describing the action (e.g., 'login', 'read', 'write', 'access_denied')
+    :param resource_type: Type of resource being accessed/modified (e.g., 'Patient', 'Wing', 'Dashboard')
+    :param resource_id: The specific resource ID or name
+    :param detail: Additional text describing the event
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO audit_logs (user_id, action, resource_type, resource_id, detail)
+        VALUES (%s, %s, %s, %s, %s);
+    """, (user_id, action, resource_type, resource_id, detail))
+    conn.commit()
+    cur.close()
+    conn.close()
