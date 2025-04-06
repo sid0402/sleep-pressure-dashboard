@@ -281,7 +281,7 @@ def calculate_sleep_status(patient_id, hours=1, minutes=0, seconds=0, detailed=F
 
     last_posture = helper.get_last_posture(patient_id)
     durations = pressure_durations_all[subject_idx]
-    durations = helper.update_pressure_durations(durations, last_posture, current_frame)
+    durations = helper.update_pressure_durations(durations, posture, current_frame, last_posture)
     pressure_durations_all[subject_idx] = durations
     pickle.dump(pressure_durations_all, open("pressure_durations.pkl", "wb"))
 
@@ -297,7 +297,7 @@ def calculate_sleep_status(patient_id, hours=1, minutes=0, seconds=0, detailed=F
     max_duration = np.max(durations)
     if max_duration > 1:
         pressure_risk, alert_level = 'high', 'high'
-    elif max_duration > 0.5:
+    elif max_duration > 1:
         pressure_risk, alert_level = 'medium', 'medium'
     else:
         pressure_risk, alert_level = 'low', 'none'

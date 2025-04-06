@@ -252,6 +252,28 @@
     h1, h2, h3, h4, h5, h6, p, span, button, input, select, textarea, a {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
+
+    .card, .patient-card {
+        background-color: #000000 !important;
+        border-color: #333333 !important;
+        color: #e0e0e0 !important;
+    }
+    
+    /* Ensure text and other elements inside the card remain visible */
+    .card h1, .card h2, .card h3, .card h4, .card h5, .card p, 
+    .patient-card h1, .patient-card h2, .patient-card h3, .patient-card h4, .patient-card h5, .patient-card p {
+        color: #e0e0e0 !important;
+    }
+    
+    /* Make sure any links or buttons inside the card have proper contrast */
+    .card a, .patient-card a {
+        color: #4da6ff !important;
+    }
+    
+    /* Adjust any icons or secondary text */
+    .card .text-muted, .patient-card .text-muted {
+        color: #aaaaaa !important;
+    }
   </style>
 </head>
 <body>
@@ -273,14 +295,14 @@
     const patientsContainer = document.getElementById('patients-container');
     const lastUpdated = document.getElementById('last-updated');
     const modalOverlay = document.getElementById('modal-overlay');
-    const modalCanvas = document.getElementById('modal-canvas');
-    const modalDetails = document.getElementById('modal-details');
+    let modalCanvas = document.getElementById('modal-canvas');
+    let modalDetails = document.getElementById('modal-details');
     const tooltip = document.getElementById('tooltip');
 
     async function fetchPatientsData() {
       const now = new Date();
       const sleepStart = new Date(now);
-      sleepStart.setHours(5, 0, 0, 0);
+      sleepStart.setHours(6, 0, 0, 0);
       let elapsed = (now - sleepStart) / 1000;
       if (elapsed < 0) {
         sleepStart.setDate(sleepStart.getDate() - 1);
@@ -334,7 +356,7 @@
       try {
         const now = new Date();
         const sleepStart = new Date(now);
-        sleepStart.setHours(5, 0, 0, 0);
+        sleepStart.setHours(6, 0, 0, 0);
         let elapsed = (now - sleepStart) / 1000;
         if (elapsed < 0) {
           sleepStart.setDate(sleepStart.getDate() - 1);
@@ -392,6 +414,84 @@
       return canvas;
     }
 
+    /* NEW FUNCTION: drawPositionsLineChart */
+    function drawPositionsLineChart(positions) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      // Chart size
+      canvas.width = 400;
+      canvas.height = 150;
+
+      const margin = 20;
+      const innerWidth = canvas.width - 2*margin;
+      const innerHeight = canvas.height - 2*margin;
+
+      // We have posture values 0,1,2
+      const minVal = 0;
+      const maxVal = 2;
+      const range = maxVal - minVal;
+
+      const n = positions.length;
+      const xSpacing = n > 1 ? innerWidth / (n - 1) : 0;
+
+      function getY(val) {
+        const fraction = (val - minVal)/range; 
+        // fraction=0 for posture=0 => bottom, fraction=1 => top
+        return margin + innerHeight - fraction * innerHeight;
+      }
+
+      // Fill background
+      ctx.fillStyle = "#252525";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // (Optional) horizontal lines for 0,1,2
+      ctx.strokeStyle = "#444";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i <= 2; i++) {
+        const y = getY(i);
+        ctx.moveTo(margin, y);
+        ctx.lineTo(canvas.width - margin, y);
+      }
+      ctx.stroke();
+
+      // y-axis labels
+      ctx.fillStyle = "#ccc";
+      ctx.font = "12px sans-serif";
+      ctx.fillText("2 (right)", 5, getY(2)-5);
+      ctx.fillText("1 (left)",  5, getY(1)-5);
+      ctx.fillText("0 (supine)",5, getY(0)-5);
+
+      // Plot line
+      ctx.strokeStyle = "#ff5252";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const x = margin + i*xSpacing;
+        const y = getY(positions[i]);
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+
+      // Circles
+      ctx.fillStyle = "#ffcccc";
+      for (let i = 0; i < n; i++) {
+        const x = margin + i*xSpacing;
+        const y = getY(positions[i]);
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, 2*Math.PI);
+        ctx.fill();
+      }
+
+      return canvas;
+    }
+    /* END NEW FUNCTION */
+
     function showTooltip(text, x, y) {
       tooltip.style.display = 'block';
       tooltip.textContent = text;
@@ -409,7 +509,7 @@
 
       const { patient, sleep_data } = detail;
       
-      // First, update the modal structure
+      // Re-build the modal content
       const modalContent = document.querySelector('.modal-content');
       modalContent.innerHTML = `
         <div class="modal-header">
@@ -422,16 +522,15 @@
         </div>
       `;
       
-      // Get the new DOM elements
-      const newModalCanvas = document.getElementById('modal-canvas');
-      const newModalDetails = document.getElementById('modal-details');
-      
-      // Add the current pressure map title and canvas directly to the new elements
-      newModalCanvas.innerHTML = `<h4>Current Pressure Map</h4>`;
+      modalCanvas = document.getElementById('modal-canvas');
+      modalDetails = document.getElementById('modal-details');
+
+      // Current Pressure Map
+      modalCanvas.innerHTML = `<h4>Current Pressure Map</h4>`;
       const heatmapCanvas = drawHeatmap(sleep_data.frame);
-      newModalCanvas.appendChild(heatmapCanvas);
-      
-      // Create risk level class
+      modalCanvas.appendChild(heatmapCanvas);
+
+      // Risk class for text color
       let riskClass = 'alert-low';
       if (sleep_data.pressure_risk === 'High') {
         riskClass = 'alert-high';
@@ -439,7 +538,7 @@
         riskClass = 'alert-medium';
       }
       
-      // Create alert level class
+      // Alert level class
       let alertClass = 'alert-low';
       if (sleep_data.alert_level === 'High') {
         alertClass = 'alert-high';
@@ -450,7 +549,7 @@
       const positions = sleep_data.positions;
       console.log(positions);
 
-      newModalDetails.innerHTML = `
+      modalDetails.innerHTML = `
         <div class="patient-info-card">
           <h4>Patient Information</h4>
           <div class="info-grid">
@@ -507,12 +606,24 @@
         </div>
       `;
 
-      // Add the durations heatmap directly to the new container
       const durationsContainer = document.getElementById('durations-heatmap');
       const durationsCanvas = drawDurationsHeatmap(sleep_data.durations);
       durationsContainer.appendChild(durationsCanvas);
+
+      // Posture History line chart
+      if (positions && Array.isArray(positions)) {
+        const postureHistoryCard = document.createElement('div');
+        postureHistoryCard.className = "patient-info-card";
+        postureHistoryCard.innerHTML = `
+          <h4>Posture History</h4>
+          <p>How the patient's posture has changed since he started sleeping</p>
+        `;
+        const lineChartCanvas = drawPositionsLineChart(positions);
+        postureHistoryCard.appendChild(lineChartCanvas);
+        modalDetails.appendChild(postureHistoryCard);
+      }
       
-      // Add tooltip functionality for risk level
+      // optional risk tooltip
       const riskElement = document.querySelector('.risk-tooltip');
       if (riskElement) {
         riskElement.addEventListener('mouseover', (e) => {
@@ -520,8 +631,7 @@
         });
         riskElement.addEventListener('mouseleave', hideTooltip);
       }
-      
-      // Show the modal
+
       modalOverlay.style.display = 'flex';
     }
 
@@ -536,7 +646,6 @@
         const div = document.createElement('div');
         div.className = 'patient';
         
-        // Add risk class based on pressure_risk
         let riskClass = 'alert-low';
         if (p.pressure_risk === 'High') {
           riskClass = 'alert-high';
@@ -562,10 +671,10 @@
 
     function pollEveryMinute() {
       const now = new Date();
-      const msToNextMinute = 60000 - (now.getSeconds() * 1000 + now.getMilliseconds());
+      const msToNextMinute = 30000 - (now.getSeconds() * 1000 + now.getMilliseconds());
       setTimeout(() => {
         updateDashboard();
-        setInterval(updateDashboard, 60000);
+        setInterval(updateDashboard, 30000);
       }, msToNextMinute);
     }
 

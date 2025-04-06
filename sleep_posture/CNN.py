@@ -20,7 +20,7 @@ class CNN(nn.Module):
   def __init__(self):
     super().__init__()
 
-    ## Convolutional Layers
+    ## Convolution2 hial Layers
     #Input channels = 1, output channels = 6
     self.conv1 = torch.nn.Conv2d(1, 6, kernel_size=3, stride=1, padding=1)
     #Input channels = 6, output channels = 18
