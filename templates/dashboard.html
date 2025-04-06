@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sleep Posture Dashboard</title>
+    <style>
+        .patient {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px;
+            display: inline-block;
+            width: 300px;
+            vertical-align: top;
+            font-family: sans-serif;
+            background-color: #f8f8f8;
+        }
+        .heatmap-canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Patient Monitor - {{ unit }} / {{ wing }}</h2>
+    <p id="last-updated">Loading...</p>
+    <div id="patients-container"></div>
+
+    <script>
+        const patientsContainer = document.getElementById('patients-container');
+        const lastUpdated = document.getElementById('last-updated');
+
+        async function fetchPatientsData() {
+            const now = new Date();
+
+            // Simulated sleep starts at 1:00 AM
+            const sleepStart = new Date(now);
+            sleepStart.setHours(1, 0, 0, 0);
+
+            let elapsed = (now - sleepStart) / 1000;
+            if (elapsed < 0) {
+                sleepStart.setDate(sleepStart.getDate() - 1);
+                elapsed = (now - sleepStart) / 1000;
+            }
+
+            const hours = Math.floor(elapsed / 3600);
+            const minutes = Math.floor((elapsed % 3600) / 60);
+            const seconds = Math.floor(elapsed % 60);
+
+            const url = `/api/patients?hours=${hours}&minutes=${minutes}&seconds=${seconds}`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error("Fetch error");
+                const data = await response.json();
+                return data.patients;
+            } catch (err) {
+                console.error(err);
+                return [];
+            }
+        }
+
+        function drawHeatmap(frameData) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const width = 32;
+            const height = 64;
+            canvas.width = width;
+            canvas.height = height;
+            canvas.className = 'heatmap-canvas';
+
+            const imgData = ctx.createImageData(width, height);
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    const raw = frameData[y][x];               // Value between 0–1
+                    const value = Math.round(raw * 255);       // Scale it to 0–255
+
+                    imgData.data[idx]     = value;  // R
+                    imgData.data[idx + 1] = 0;      // G
+                    imgData.data[idx + 2] = 0;      // B
+                    imgData.data[idx + 3] = 255;    // A (fully opaque)
+                }
+            }
+
+            ctx.putImageData(imgData, 0, 0);
+            return canvas;
+        }
+
+        async function updateDashboard() {
+            const patients = await fetchPatientsData();
+            patientsContainer.innerHTML = '';
+
+            patients.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'patient';
+
+                div.innerHTML = `
+                    <p><strong>${p.name}</strong></p>
+                    <p>ID: ${p.id}</p>
+                    <p>Posture: ${p.posture}</p>
+                    <p>Risk: ${p.pressure_risk}</p>
+                `;
+
+                if (p.frame) {
+                    const heatmap = drawHeatmap(p.frame);
+                    div.appendChild(heatmap);
+                } else {
+                    div.innerHTML += '<p>No frame data</p>';
+                }
+
+                patientsContainer.appendChild(div);
+            });
+
+            lastUpdated.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+        }
+
+        // Auto-refresh at start of every minute
+        window.addEventListener('load', () => {
+            updateDashboard();
+
+            const now = new Date();
+            const msToNextMinute = (60 - now.getSeconds()) * 1000;
+
+            setTimeout(() => {
+                updateDashboard();
+                setInterval(updateDashboard, 60 * 1000);
+            }, msToNextMinute);
+        });
+    </script>
+</body>
+</html>

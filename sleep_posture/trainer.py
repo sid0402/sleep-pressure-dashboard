@@ -79,6 +79,9 @@ for epoch in range(epochs):
     
     running_loss = 0
     model.train()
+  
+
+torch.save(model.state_dict(), '../model.pth')
 
 def class_position(img, ps, label):
   ''' Function for viewing an position and it's predicted classes.

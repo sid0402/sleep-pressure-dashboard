@@ -1,6 +1,6 @@
 import os
 import numpy as np
-
+import pickle
 # PyTorch (modeling)
 import torch
 from torch import nn
@@ -35,11 +35,13 @@ class Mat_Dataset(Dataset):
   def __getitem__(self, idx):
     return self.samples[idx], self.labels[idx]
 
-exp_i_data = helper.load_exp_i("dataset/experiment-i")
-exp_ii_data_air, exp_ii_data_spo = helper.load_exp_ii("dataset/experiment-ii")
+#exp_i_data = helper.load_exp_i("../dataset/experiment-i")
+#exp_ii_data_air, exp_ii_data_spo = helper.load_exp_ii("../dataset/experiment-ii")
+
+with open("../dataset.pkl", "rb") as f:
+    data = pickle.load(f)
 
 datasets = {
-    "Base":exp_i_data,
-    "Spo":exp_ii_data_air,
-    "Air":exp_ii_data_spo
+    "Base":data,
 }
+

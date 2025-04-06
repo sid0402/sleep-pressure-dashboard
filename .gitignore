@@ -1,3 +1,6 @@
 dataset/
 env/
 __pycache__/
+hapi-fhir-jpaserver-starter/
+*.pkl
+*.pth

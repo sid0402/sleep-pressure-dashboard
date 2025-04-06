@@ -107,11 +107,11 @@ def load_exp_i(path):
                 labels = np.concatenate((labels, file_label), axis=0)
 
       dataset[subject] = (torch.from_numpy(data), torch.from_numpy(labels))
-  
+  '''
   with open('dataset/experiment-i/dataset.pkl', 'wb') as f:
     pickle.dump(dataset, f)
     f.close()
-
+  '''
   return dataset
 
 # Both air and sponge mattresses used in the data collection have a different
@@ -180,7 +180,7 @@ def load_exp_ii(path):
 
           data = None
           labels = None
-    
+  '''
   with open('dataset/experiment-ii/dataset_air.pkl', 'wb') as f:
     pickle.dump(exp_ii_data_air, f)
     f.close()
@@ -188,5 +188,5 @@ def load_exp_ii(path):
   with open('dataset/experiment-ii/dataset_spo.pkl', 'wb') as f:
     pickle.dump(exp_ii_data_spo, f)
     f.close()
-  
+  '''
   return exp_ii_data_air, exp_ii_data_spo
